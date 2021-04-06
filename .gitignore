@@ -1,0 +1,11 @@
+build/*
+*.mod
+sysapp.layout
+sysapp.cbp
+sysapp.cscope_file_list
+*.wps
+*.elf
+cmake-build-debug/
+.idea/
+*.rpx
+*.txt
