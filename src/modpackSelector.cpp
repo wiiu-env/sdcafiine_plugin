@@ -43,7 +43,7 @@ void HandleMultiModPacks(uint64_t titleID) {
         }
 
         std::string packageName = curFile;
-        modTitlePath[packageName] = modTitleIDPath.append("/").append(curFile);
+        modTitlePath[packageName] = modTitleIDPath + "/" + curFile;
         DEBUG_FUNCTION_LINE("found %s", packageName.c_str());
     }
 
