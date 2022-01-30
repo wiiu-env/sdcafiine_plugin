@@ -31,7 +31,7 @@ INCLUDES	:=	src
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
-CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
+CFLAGS	:=	-Wall -O2 -ffunction-sections \
 			$(MACHDEP)
 
 CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -D__WUPS__ 
@@ -40,6 +40,11 @@ CXXFLAGS	:= $(CFLAGS) -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map) -T$(WUMS_ROOT)/share/libmappedmemory.ld -T$(WUMS_ROOT)/share/librpxloader.ld $(WUPSSPECS)
+
+ifeq ($(DEBUG),1)
+CXXFLAGS += -DDEBUG -g
+CFLAGS += -DDEBUG -g
+endif
 
 LIBS	:= -lwups -lwut -lmappedmemory -lrpxloader
 

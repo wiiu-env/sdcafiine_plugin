@@ -1,5 +1,5 @@
 #include <wups.h>
-#include <whb/log_udp.h>
+#include "utils/logger.h"
 #include "modpackSelector.h"
 #include <coreinit/title.h>
 
@@ -13,6 +13,9 @@ WUPS_USE_WUT_DEVOPTAB();
 
 /* Entry point */
 ON_APPLICATION_START() {
-    WHBLogUdpInit();
+    initLogging();
     HandleMultiModPacks(OSGetTitleID());
+}
+ON_APPLICATION_ENDS(){
+    deinitLogging();
 }
