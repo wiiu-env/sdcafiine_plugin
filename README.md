@@ -6,6 +6,12 @@ The main feature of this application is the **on-the-fly replacing of files**, w
 ## Dependecies
 Requires the [RPXLoadingModule](https://github.com/wiiu-env/RPXLoadingModule) to be loaded.
 
+## Installation of the modules
+(`[ENVIRONMENT]` is a placeholder for the actual environment name.)
+
+1. Copy the file `sdcafiine.wps` into `sd:/wiiu/environments/[ENVIRONMENT]/plugins`.  
+2. Requires the [WiiUPluginLoaderBackend](https://github.com/wiiu-env/WiiUPluginLoaderBackend) in `sd:/wiiu/environments/[ENVIRONMENT]/modules`.
+3. Requires the [RPXLoadingModule](https://github.com/wiiu-env/RPXLoadingModule) in `sd:/wiiu/environments/[ENVIRONMENT]/modules`.
 
 ### Installation of the mods
 Before the mods can be loaded, they need to be copied to a SD device. 
