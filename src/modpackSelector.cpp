@@ -1,22 +1,22 @@
-#include <string>
-#include <map>
-#include <cstring>
-#include <cstdlib>
+#include "modpackSelector.h"
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <malloc.h>
-#include "modpackSelector.h"
+#include <map>
+#include <string>
 
 #include <coreinit/thread.h>
 #include <memory/mappedmemory.h>
 
-#include <utils/logger.h>
-#include <fs/DirList.h>
 #include <coreinit/screen.h>
-#include <vpad/input.h>
+#include <fs/DirList.h>
 #include <rpxloader.h>
+#include <utils/logger.h>
+#include <vpad/input.h>
 
-#define TEXT_SEL(x, text1, text2)           ((x) ? (text1) : (text2))
+#define TEXT_SEL(x, text1, text2) ((x) ? (text1) : (text2))
 
 
 void ReplaceContent(const std::string &basePath);
@@ -42,7 +42,7 @@ void HandleMultiModPacks(uint64_t titleID) {
             continue;
         }
 
-        std::string packageName = curFile;
+        std::string packageName   = curFile;
         modTitlePath[packageName] = modTitleIDPath + "/" + curFile;
         DEBUG_FUNCTION_LINE("found %s", packageName.c_str());
     }
@@ -51,16 +51,15 @@ void HandleMultiModPacks(uint64_t titleID) {
         return;
     }
 
-    int selected = 0;
+    int selected   = 0;
     int initScreen = 1;
-    int x_offset = -2;
+    int x_offset   = -2;
 
     // Init screen and screen buffers
     OSScreenInit();
     uint32_t screen_buf0_size = OSScreenGetBufferSizeEx(SCREEN_TV);
     uint32_t screen_buf1_size = OSScreenGetBufferSizeEx(SCREEN_DRC);
-    uint8_t *screenBuffer = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf0_size + screen_buf1_size, 0x100
-    );
+    uint8_t *screenBuffer     = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf0_size + screen_buf1_size, 0x100);
     if (screenBuffer == nullptr) {
         DEBUG_FUNCTION_LINE("Failed to alloc");
         return;
@@ -82,9 +81,9 @@ void HandleMultiModPacks(uint64_t titleID) {
     VPADReadError error;
 
     int wantToExit = 0;
-    int page = 0;
-    int per_page = 13;
-    int max_pages = (modTitlePath.size() / per_page) + 1;
+    int page       = 0;
+    int per_page   = 13;
+    int max_pages  = (modTitlePath.size() / per_page) + 1;
 
     while (true) {
 
@@ -122,10 +121,10 @@ void HandleMultiModPacks(uint64_t titleID) {
             console_print_pos(x_offset, 1, "Select your options and press A to launch.");
             console_print_pos(x_offset, 2, "Press B to launch without mods");
             int y_offset = 4;
-            int cur_ = 0;
+            int cur_     = 0;
 
             for (auto &it : modTitlePath) {
-                std::string key = it.first;
+                std::string key   = it.first;
                 std::string value = it.second;
 
                 if (wantToExit && cur_ == selected) {
@@ -189,7 +188,6 @@ void console_print_pos(int x, int y, const char *format, ...) {
 
         OSScreenPutFontEx(SCREEN_TV, x, y, tmp);
         OSScreenPutFontEx(SCREEN_DRC, x, y, tmp);
-
     }
     va_end(va);
 
