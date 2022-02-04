@@ -27,8 +27,8 @@
 #ifndef ___DIRLIST_H_
 #define ___DIRLIST_H_
 
-#include <vector>
 #include <string>
+#include <vector>
 #include <wut_types.h>
 
 typedef struct {
@@ -60,7 +60,8 @@ public:
     //!\param list index
     const char *GetFilepath(int32_t index) const {
         if (!valid(index)) return "";
-        else return FileInfo[index].FilePath;
+        else
+            return FileInfo[index].FilePath;
     }
 
     //! Get the a filesize of the list
@@ -90,10 +91,11 @@ public:
 
     //! Enum for search/filter flags
     enum {
-        Files = 0x01,
-        Dirs = 0x02,
+        Files           = 0x01,
+        Dirs            = 0x02,
         CheckSubfolders = 0x08,
     };
+
 protected:
     // Internal parser
     BOOL InternalLoadPath(std::string &path);

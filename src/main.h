@@ -4,8 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <stdint.h>
 #include <nsysnet/socket.h>
+#include <stdint.h>
 
 
 #ifdef __cplusplus

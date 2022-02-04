@@ -1,7 +1,7 @@
-#include <wups.h>
-#include "utils/logger.h"
 #include "modpackSelector.h"
+#include "utils/logger.h"
 #include <coreinit/title.h>
+#include <wups.h>
 
 WUPS_PLUGIN_NAME("SDCafiine");
 WUPS_PLUGIN_DESCRIPTION("Wiiload Server");
@@ -16,6 +16,6 @@ ON_APPLICATION_START() {
     initLogging();
     HandleMultiModPacks(OSGetTitleID());
 }
-ON_APPLICATION_ENDS(){
+ON_APPLICATION_ENDS() {
     deinitLogging();
 }
