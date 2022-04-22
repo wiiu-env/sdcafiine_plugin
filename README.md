@@ -6,18 +6,18 @@
 The main feature of this application is the **on-the-fly replacing of files**, which can be used used to loaded modified content from external media (**SD**). It hooks into the file system functions of the WiiU. Whenever a file is accessed, SDCafiine checks if a (modified) version of it present on the SD device, and redirect the file operations if needed.
 
 ## Dependecies
-Requires the [RPXLoadingModule](https://github.com/wiiu-env/RPXLoadingModule) to be loaded.
+Requires the [ContentRedirectionModule](https://github.com/wiiu-env/ContentRedirectionModule) to be loaded.
 
 ## Installation of the modules
 (`[ENVIRONMENT]` is a placeholder for the actual environment name.)
 
 1. Copy the file `sdcafiine.wps` into `sd:/wiiu/environments/[ENVIRONMENT]/plugins`.  
 2. Requires the [WiiUPluginLoaderBackend](https://github.com/wiiu-env/WiiUPluginLoaderBackend) in `sd:/wiiu/environments/[ENVIRONMENT]/modules`.
-3. Requires the [RPXLoadingModule](https://github.com/wiiu-env/RPXLoadingModule) in `sd:/wiiu/environments/[ENVIRONMENT]/modules`.
+3. Requires the [ContentRedirectionModule](https://github.com/wiiu-env/ContentRedirectionModule) in `sd:/wiiu/environments/[ENVIRONMENT]/modules`.
 
 ### Installation of the mods
-Before the mods can be loaded, they need to be copied to a SD device. 
-**In the following "root:/" is corresponding to the root of your SD device**. The basic filepath structure is this:
+Before the mods can be loaded, they need to be copied to a SD Card. 
+**In the following "root:/" is corresponding to the root of your SD card**. The basic filepath structure is this:
 
 ```
 root:/sdcafiine/[TITLEID]/[MODPACK]/content/  <-- for game files. Maps to /vol/content/

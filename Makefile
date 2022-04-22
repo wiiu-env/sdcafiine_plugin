@@ -39,14 +39,19 @@ CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -D__WUPS__
 CXXFLAGS	:= $(CFLAGS) -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map) -T$(WUMS_ROOT)/share/libmappedmemory.ld -T$(WUMS_ROOT)/share/librpxloader.ld $(WUPSSPECS)
+LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map) -T$(WUMS_ROOT)/share/libmappedmemory.ld $(WUPSSPECS)
 
 ifeq ($(DEBUG),1)
 CXXFLAGS += -DDEBUG -g
 CFLAGS += -DDEBUG -g
 endif
 
-LIBS	:= -lwups -lwut -lmappedmemory -lrpxloader
+ifeq ($(VERBOSE_DEBUG),1)
+CXXFLAGS += -DVERBOSE_DEBUG -g
+CFLAGS += -DVERBOSE_DEBUG -g
+endif
+
+LIBS	:= -lwups -lwut -lmappedmemory -lcontentredirection
 
 #-------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level

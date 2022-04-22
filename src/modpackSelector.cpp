@@ -1,23 +1,21 @@
 #include "modpackSelector.h"
 #include <cstdarg>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <malloc.h>
 #include <map>
 #include <string>
 
+#include <content_redirection/redirection.h>
 #include <coreinit/thread.h>
 #include <memory/mappedmemory.h>
 
 #include <coreinit/screen.h>
 #include <fs/DirList.h>
-#include <rpxloader.h>
 #include <utils/logger.h>
 #include <vpad/input.h>
 
 #define TEXT_SEL(x, text1, text2) ((x) ? (text1) : (text2))
-
 
 void ReplaceContent(const std::string &basePath);
 
@@ -29,22 +27,21 @@ void HandleMultiModPacks(uint64_t titleID) {
 
     std::map<std::string, std::string> mounting_points;
 
-
     std::string modTitleIDPath = std::string("fs:/vol/external01/sdcafiine/") + TitleIDString;
-    DirList modTitleDirList(modTitleIDPath.c_str(), nullptr, DirList::Dirs);
+    DirList modTitleDirList(modTitleIDPath, nullptr, DirList::Dirs);
 
     modTitleDirList.SortList();
 
     for (int index = 0; index < modTitleDirList.GetFilecount(); index++) {
         std::string curFile = modTitleDirList.GetFilename(index);
-        //DEBUG_FUNCTION_LINE("curFile %s \n",curFile.c_str());
-        if (curFile.compare(".") == 0 || curFile.compare("..") == 0) {
+
+        if (curFile == "." || curFile == "..") {
             continue;
         }
 
-        std::string packageName   = curFile;
-        modTitlePath[packageName] = modTitleIDPath + "/" + curFile;
-        DEBUG_FUNCTION_LINE("found %s", packageName.c_str());
+        const std::string &packageName = curFile;
+        modTitlePath[packageName]      = modTitleIDPath.append("/").append(curFile);
+        DEBUG_FUNCTION_LINE_VERBOSE("Found %s", packageName.c_str());
     }
 
     if (modTitlePath.empty()) {
@@ -59,9 +56,9 @@ void HandleMultiModPacks(uint64_t titleID) {
     OSScreenInit();
     uint32_t screen_buf0_size = OSScreenGetBufferSizeEx(SCREEN_TV);
     uint32_t screen_buf1_size = OSScreenGetBufferSizeEx(SCREEN_DRC);
-    uint8_t *screenBuffer     = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf0_size + screen_buf1_size, 0x100);
+    auto *screenBuffer        = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf0_size + screen_buf1_size, 0x100);
     if (screenBuffer == nullptr) {
-        DEBUG_FUNCTION_LINE("Failed to alloc");
+        DEBUG_FUNCTION_LINE_ERR("Failed to alloc screenBuffer");
         return;
     }
     OSScreenSetBufferEx(SCREEN_TV, (void *) screenBuffer);
@@ -164,20 +161,23 @@ void HandleMultiModPacks(uint64_t titleID) {
     OSScreenFlipBuffersEx(SCREEN_DRC);
 
     MEMFreeToMappedMemory(screenBuffer);
-
-    return;
 }
+extern CRLayerHandle contentLayerHandle;
 
 void ReplaceContent(const std::string &basePath) {
-    if (RL_RedirectContentWithFallback(basePath.c_str())) {
-        DEBUG_FUNCTION_LINE("redirect /vol/content to %s", basePath.c_str());
+    auto res = ContentRedirection_AddFSLayer(&contentLayerHandle,
+                                             "SDCafiine Content",
+                                             basePath.c_str(),
+                                             FS_LAYER_TYPE_CONTENT_MERGE);
+    if (res == CONTENT_REDIRECTION_RESULT_SUCCESS) {
+        DEBUG_FUNCTION_LINE("Redirect /vol/content to %s", basePath.c_str());
     } else {
-        DEBUG_FUNCTION_LINE("ERROR: Failed to redirect /vol/content to %s", basePath.c_str());
+        DEBUG_FUNCTION_LINE_ERR("Failed to redirect /vol/content to %s", basePath.c_str());
     }
 }
 
 void console_print_pos(int x, int y, const char *format, ...) {
-    char *tmp = NULL;
+    char *tmp = nullptr;
 
     va_list va;
     va_start(va, format);
