@@ -46,6 +46,18 @@ sd:/sdcafiine/0005000010145000/ModPack1/content/
 sd:/sdcafiine/0005000010145000/ModPack2/content/
 ```
 
+## Buildflags
+
+### Logging
+Building via `make` only logs errors (via OSReport). To enable logging via the [LoggingModule](https://github.com/wiiu-env/LoggingModule) set `DEBUG` to `1` or `VERBOSE`.
+
+`make` Logs errors only (via OSReport).  
+`make DEBUG=1` Enables information and error logging via [LoggingModule](https://github.com/wiiu-env/LoggingModule).  
+`make DEBUG=VERBOSE` Enables verbose information and error logging via [LoggingModule](https://github.com/wiiu-env/LoggingModule).  
+
+If the [LoggingModule](https://github.com/wiiu-env/LoggingModule) is not present, it'll fallback to UDP (Port 4405) and [CafeOS](https://github.com/wiiu-env/USBSerialLoggingModule) logging.
+
+
 ## Building using the Dockerfile
 
 It's possible to use a docker image for building. This way you don't need anything installed on your host system.

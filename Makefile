@@ -46,9 +46,9 @@ CXXFLAGS += -DDEBUG -g
 CFLAGS += -DDEBUG -g
 endif
 
-ifeq ($(VERBOSE_DEBUG),1)
-CXXFLAGS += -DVERBOSE_DEBUG -g
-CFLAGS += -DVERBOSE_DEBUG -g
+ifeq ($(DEBUG),VERBOSE)
+CXXFLAGS += -DDEBUG -DVERBOSE_DEBUG -g
+CFLAGS += -DDEBUG -DVERBOSE_DEBUG -g
 endif
 
 LIBS	:= -lwups -lwut -lmappedmemory -lcontentredirection
