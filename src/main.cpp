@@ -17,7 +17,7 @@ CRLayerHandle contentLayerHandle __attribute__((section(".data"))) = 0;
 INITIALIZE_PLUGIN() {
     // But then use libcontentredirection instead.
     ContentRedirectionStatus error;
-    if ((error = ContentRedirection_Init()) != CONTENT_REDIRECTION_RESULT_SUCCESS) {
+    if ((error = ContentRedirection_InitLibrary()) != CONTENT_REDIRECTION_RESULT_SUCCESS) {
         DEBUG_FUNCTION_LINE_ERR("Failed to init ContentRedirection. Error %d", error);
         OSFatal("Failed to init ContentRedirection.");
     }

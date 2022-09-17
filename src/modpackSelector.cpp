@@ -1,4 +1,6 @@
 #include "modpackSelector.h"
+#include "main.h"
+#include "version.h"
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -114,7 +116,7 @@ void HandleMultiModPacks(uint64_t titleID) {
         if (initScreen) {
             OSScreenClearBufferEx(SCREEN_TV, 0);
             OSScreenClearBufferEx(SCREEN_DRC, 0);
-            console_print_pos(x_offset, -1, "                  -- SDCafiine plugin %s by Maschell --");
+            console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
             console_print_pos(x_offset, 1, "Select your options and press A to launch.");
             console_print_pos(x_offset, 2, "Press B to launch without mods");
             int y_offset = 4;
