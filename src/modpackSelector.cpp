@@ -1,25 +1,22 @@
 #include "modpackSelector.h"
 #include "main.h"
 #include "version.h"
+#include <content_redirection/redirection.h>
+#include <coreinit/screen.h>
+#include <coreinit/thread.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <fs/DirList.h>
 #include <malloc.h>
 #include <map>
-#include <string>
-
-#include <content_redirection/redirection.h>
-#include <coreinit/thread.h>
 #include <memory/mappedmemory.h>
-
-#include <coreinit/screen.h>
-#include <fs/DirList.h>
+#include <string>
 #include <utils/logger.h>
 #include <vpad/input.h>
+#include <wups/storage.h>
 
 #define TEXT_SEL(x, text1, text2) ((x) ? (text1) : (text2))
-
-void ReplaceContent(const std::string &basePath);
 
 void HandleMultiModPacks(uint64_t titleID) {
     char TitleIDString[17];
@@ -29,7 +26,7 @@ void HandleMultiModPacks(uint64_t titleID) {
 
     std::map<std::string, std::string> mounting_points;
 
-    std::string modTitleIDPath = std::string("fs:/vol/external01/sdcafiine/") + TitleIDString;
+    const std::string modTitleIDPath = std::string("fs:/vol/external01/sdcafiine/").append(TitleIDString);
     DirList modTitleDirList(modTitleIDPath, nullptr, DirList::Dirs);
 
     modTitleDirList.SortList();
@@ -42,11 +39,15 @@ void HandleMultiModPacks(uint64_t titleID) {
         }
 
         const std::string &packageName = curFile;
-        modTitlePath[packageName]      = modTitleIDPath.append("/").append(curFile);
-        DEBUG_FUNCTION_LINE_VERBOSE("Found %s", packageName.c_str());
+        modTitlePath[packageName]      = (modTitleIDPath + "/").append(curFile);
+        DEBUG_FUNCTION_LINE_VERBOSE("Found %s  %s", packageName.c_str(), modTitlePath[packageName].c_str());
     }
 
     if (modTitlePath.empty()) {
+        return;
+    }
+    if (modTitlePath.size() == 1 && gSkipPrepareIfSingleModpack) {
+        ReplaceContent(modTitlePath.begin()->second);
         return;
     }
 
@@ -61,6 +62,7 @@ void HandleMultiModPacks(uint64_t titleID) {
     auto *screenBuffer        = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf0_size + screen_buf1_size, 0x100);
     if (screenBuffer == nullptr) {
         DEBUG_FUNCTION_LINE_ERR("Failed to alloc screenBuffer");
+        OSFatal("SDCafiine plugin: Failed to alloc screenBuffer.");
         return;
     }
     OSScreenSetBufferEx(SCREEN_TV, (void *) screenBuffer);
@@ -79,80 +81,142 @@ void HandleMultiModPacks(uint64_t titleID) {
     VPADStatus vpad_data;
     VPADReadError error;
 
+    bool displayAutoSkipOption = modTitlePath.size() == 1;
+
     int wantToExit = 0;
     int page       = 0;
-    int per_page   = 13;
+    int per_page   = displayAutoSkipOption ? 11 : 13;
     int max_pages  = (modTitlePath.size() / per_page) + 1;
 
-    while (true) {
+    int curState = 0;
+    if (gAutoApplySingleModpack && modTitlePath.size() == 1) {
+        curState = 1;
+    }
 
+    int durationInFrames = 60;
+    int frameCounter     = 0;
+
+    while (true) {
         error = VPAD_READ_NO_SAMPLES;
         VPADRead(VPAD_CHAN_0, &vpad_data, 1, &error);
 
-        if (error == VPAD_READ_SUCCESS) {
-            if (vpad_data.trigger & VPAD_BUTTON_A) {
-                wantToExit = 1;
-                initScreen = 1;
-            } else if (vpad_data.trigger & VPAD_BUTTON_B) {
-                break;
-            } else if (vpad_data.trigger & VPAD_BUTTON_DOWN) {
-                selected++;
-                initScreen = 1;
-            } else if (vpad_data.trigger & VPAD_BUTTON_UP) {
-                selected--;
-                initScreen = 1;
-            } else if (vpad_data.trigger & VPAD_BUTTON_L) {
-                selected -= per_page;
-                initScreen = 1;
-            } else if (vpad_data.trigger & VPAD_BUTTON_R) {
-                selected += per_page;
-                initScreen = 1;
+        if (curState == 1) {
+            if (error == VPAD_READ_SUCCESS) {
+                if (vpad_data.trigger & VPAD_BUTTON_X) {
+                    curState = 0;
+                    continue;
+                }
             }
-            if (selected < 0) { selected = 0; }
-            if (selected >= modTitlePath.size()) { selected = modTitlePath.size() - 1; }
-            page = selected / per_page;
-        }
+            if (initScreen) {
+                OSScreenClearBufferEx(SCREEN_TV, 0);
+                OSScreenClearBufferEx(SCREEN_DRC, 0);
+                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+                console_print_pos(x_offset, 1, "Preparing modpack \"%s\"...", modTitlePath.begin()->first.c_str());
+                console_print_pos(x_offset, 3, "Press X to open menu");
+                // Flip buffers
+                OSScreenFlipBuffersEx(SCREEN_TV);
+                OSScreenFlipBuffersEx(SCREEN_DRC);
+            }
 
-        if (initScreen) {
-            OSScreenClearBufferEx(SCREEN_TV, 0);
-            OSScreenClearBufferEx(SCREEN_DRC, 0);
-            console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
-            console_print_pos(x_offset, 1, "Select your options and press A to launch.");
-            console_print_pos(x_offset, 2, "Press B to launch without mods");
-            int y_offset = 4;
-            int cur_     = 0;
+            if (frameCounter >= durationInFrames) {
+                ReplaceContent(modTitlePath.begin()->second);
+                break;
+            }
 
-            for (auto &it : modTitlePath) {
-                std::string key   = it.first;
-                std::string value = it.second;
+            frameCounter++;
+        } else {
+            if (error == VPAD_READ_SUCCESS) {
+                if (vpad_data.trigger & VPAD_BUTTON_A) {
+                    wantToExit = 1;
+                    initScreen = 1;
+                } else if (modTitlePath.size() == 1 && (vpad_data.trigger & VPAD_BUTTON_X)) {
+                    OSScreenClearBufferEx(SCREEN_TV, 0);
+                    OSScreenClearBufferEx(SCREEN_DRC, 0);
 
-                if (wantToExit && cur_ == selected) {
-                    ReplaceContent(value.append("/content"));
-                    //snprintf(gModFolder, FS_MAX_ENTNAME_SIZE, "%s", value.c_str());
+                    console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+                    console_print_pos(x_offset, 1, "Save settings...");
+
+                    // Flip buffers
+                    OSScreenFlipBuffersEx(SCREEN_TV);
+                    OSScreenFlipBuffersEx(SCREEN_DRC);
+
+                    // We open the storage, so we can persist the configuration the user did.
+                    if (WUPS_OpenStorage() == WUPS_STORAGE_ERROR_SUCCESS) {
+                        gAutoApplySingleModpack = !gAutoApplySingleModpack;
+                        // If the value has changed, we store it in the storage.
+                        if (WUPS_StoreInt(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
+                        }
+                        if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
+                            DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
+                        }
+                    }
+                    initScreen = 1;
+                } else if (vpad_data.trigger & VPAD_BUTTON_B) {
+                    break;
+                } else if (vpad_data.trigger & VPAD_BUTTON_DOWN) {
+                    selected++;
+                    initScreen = 1;
+                } else if (vpad_data.trigger & VPAD_BUTTON_UP) {
+                    selected--;
+                    initScreen = 1;
+                } else if (vpad_data.trigger & VPAD_BUTTON_L) {
+                    selected -= per_page;
+                    initScreen = 1;
+                } else if (vpad_data.trigger & VPAD_BUTTON_R) {
+                    selected += per_page;
+                    initScreen = 1;
+                }
+                if (selected < 0) { selected = 0; }
+                if (selected >= modTitlePath.size()) { selected = modTitlePath.size() - 1; }
+                page = selected / per_page;
+            }
+
+            if (initScreen) {
+                OSScreenClearBufferEx(SCREEN_TV, 0);
+                OSScreenClearBufferEx(SCREEN_DRC, 0);
+                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+                console_print_pos(x_offset, 1, "Press A to launch a modpack");
+                console_print_pos(x_offset, 2, "Press B to launch without a modpack");
+                if (modTitlePath.size() == 1) {
+                    if (gAutoApplySingleModpack) {
+                        console_print_pos(x_offset, 4, "Press X to disable autostart for a single modpack");
+                    } else {
+                        console_print_pos(x_offset, 4, "Press X to enable autostart for a single modpack");
+                    }
+                }
+                int y_offset = displayAutoSkipOption ? 6 : 4;
+                int cur_     = 0;
+
+                for (auto &it : modTitlePath) {
+                    std::string key   = it.first;
+                    std::string value = it.second;
+
+                    if (wantToExit && cur_ == selected) {
+                        ReplaceContent(value);
+                        break;
+                    }
+
+                    if (cur_ >= (page * per_page) && cur_ < ((page + 1) * per_page)) {
+                        console_print_pos(x_offset, y_offset++, "%s %s", TEXT_SEL((selected == cur_), "--->", "    "), key.c_str());
+                    }
+                    cur_++;
+                }
+
+                if (wantToExit) { //just in case.
                     break;
                 }
 
-                if (cur_ >= (page * per_page) && cur_ < ((page + 1) * per_page)) {
-                    console_print_pos(x_offset, y_offset++, "%s %s", TEXT_SEL((selected == cur_), "--->", "    "), key.c_str());
+                if (max_pages > 0) {
+                    console_print_pos(x_offset, 17, "Page %02d/%02d. Press L/R to change page.", page + 1, max_pages);
                 }
-                cur_++;
+
+                // Flip buffers
+                OSScreenFlipBuffersEx(SCREEN_TV);
+                OSScreenFlipBuffersEx(SCREEN_DRC);
+
+                initScreen = 0;
             }
-
-            if (wantToExit) { //just in case.
-                break;
-            }
-
-            if (max_pages > 0) {
-                console_print_pos(x_offset, 17, "Page %02d/%02d. Press L/R to change page.", page + 1, max_pages);
-            }
-
-            // Flip buffers
-            OSScreenFlipBuffersEx(SCREEN_TV);
-            OSScreenFlipBuffersEx(SCREEN_DRC);
-
-            initScreen = 0;
         }
-        OSSleepTicks(OSMillisecondsToTicks(100));
     }
 
     OSScreenClearBufferEx(SCREEN_TV, 0);
@@ -165,18 +229,52 @@ void HandleMultiModPacks(uint64_t titleID) {
     MEMFreeToMappedMemory(screenBuffer);
 }
 extern CRLayerHandle contentLayerHandle;
+extern CRLayerHandle aocLayerHandle;
 
-void ReplaceContent(const std::string &basePath) {
-    auto res = ContentRedirection_AddFSLayer(&contentLayerHandle,
-                                             "SDCafiine Content",
-                                             basePath.c_str(),
+bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle);
+
+bool ReplaceContent(const std::string &basePath) {
+    bool contentRes = ReplaceContentInternal(basePath, "content", &contentLayerHandle);
+    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &aocLayerHandle);
+
+    if (!contentRes && !aocRes) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to apply modpack. Starting without mods.");
+        OSScreenClearBufferEx(SCREEN_TV, 0);
+        OSScreenClearBufferEx(SCREEN_DRC, 0);
+        console_print_pos(-2, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+        console_print_pos(-2, 1, "Failed to apply modpack. Starting without mods.");
+        OSScreenFlipBuffersEx(SCREEN_TV);
+        OSScreenFlipBuffersEx(SCREEN_DRC);
+
+        OSSleepTicks(OSMillisecondsToTicks(3000));
+        return false;
+    }
+    return true;
+}
+
+bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle) {
+    std::string layerName = "SDCafiine /vol/" + subdir;
+    std::string fullPath  = basePath + "/" + subdir;
+    struct stat st {};
+    if (stat(fullPath.c_str(), &st) < 0) {
+        DEBUG_FUNCTION_LINE_WARN("Skip /vol/%s to %s redirection. Dir does not exist", subdir.c_str(), fullPath.c_str());
+        return false;
+    }
+
+    auto res = ContentRedirection_AddFSLayer(layerHandle,
+                                             layerName.c_str(),
+                                             fullPath.c_str(),
                                              FS_LAYER_TYPE_CONTENT_MERGE);
     if (res == CONTENT_REDIRECTION_RESULT_SUCCESS) {
-        DEBUG_FUNCTION_LINE("Redirect /vol/content to %s", basePath.c_str());
+        DEBUG_FUNCTION_LINE("Redirect /vol/%s to %s", subdir.c_str(), fullPath.c_str());
     } else {
-        DEBUG_FUNCTION_LINE_ERR("Failed to redirect /vol/content to %s", basePath.c_str());
+        DEBUG_FUNCTION_LINE_ERR("Failed to redirect /vol/%s to %s", subdir.c_str(), fullPath.c_str());
+
+        return false;
     }
+    return true;
 }
+
 
 void console_print_pos(int x, int y, const char *format, ...) {
     char *tmp = nullptr;
