@@ -46,10 +46,7 @@ void HandleMultiModPacks(uint64_t titleID) {
     if (modTitlePath.empty()) {
         return;
     }
-    if (modTitlePath.size() == 1 && gSkipPrepareIfSingleModpack) {
-        ReplaceContent(modTitlePath.begin()->second);
-        return;
-    }
+
 
     int selected   = 0;
     int initScreen = 1;
@@ -78,168 +75,174 @@ void HandleMultiModPacks(uint64_t titleID) {
     OSScreenFlipBuffersEx(SCREEN_TV);
     OSScreenFlipBuffersEx(SCREEN_DRC);
 
-    uint32_t buttonsTriggered;
+    if (modTitlePath.size() == 1 && gSkipPrepareIfSingleModpack) {
+        ReplaceContent(modTitlePath.begin()->second);
 
-    VPADStatus vpad_data{};
-    VPADReadError vpad_error;
-    KPADStatus kpad_data{};
-    KPADError kpad_error;
+    } else {
 
-    bool displayAutoSkipOption = modTitlePath.size() == 1;
+        uint32_t buttonsTriggered;
 
-    int wantToExit = 0;
-    int page       = 0;
-    int per_page   = displayAutoSkipOption ? 11 : 13;
-    int max_pages  = (modTitlePath.size() / per_page) + 1;
+        VPADStatus vpad_data{};
+        VPADReadError vpad_error;
+        KPADStatus kpad_data{};
+        KPADError kpad_error;
 
-    int curState = 0;
-    if (gAutoApplySingleModpack && modTitlePath.size() == 1) {
-        curState = 1;
-    }
+        bool displayAutoSkipOption = modTitlePath.size() == 1;
 
-    int durationInFrames = 60;
-    int frameCounter     = 0;
-    KPADInit();
-    WPADEnableURCC(true);
+        int wantToExit = 0;
+        int page       = 0;
+        int per_page   = displayAutoSkipOption ? 11 : 13;
+        int max_pages  = (modTitlePath.size() / per_page) + 1;
 
-    while (true) {
-        buttonsTriggered = 0;
-
-        VPADRead(VPAD_CHAN_0, &vpad_data, 1, &vpad_error);
-        if (vpad_error == VPAD_READ_SUCCESS) {
-            buttonsTriggered = vpad_data.trigger;
+        int curState = 0;
+        if (gAutoApplySingleModpack && modTitlePath.size() == 1) {
+            curState = 1;
         }
 
-        for (int i = 0; i < 4; i++) {
-            memset(&kpad_data, 0, sizeof(kpad_data));
-            if (KPADReadEx((KPADChan) i, &kpad_data, 1, &kpad_error) > 0) {
-                if (kpad_error == KPAD_ERROR_OK && kpad_data.extensionType != 0xFF) {
-                    if (kpad_data.extensionType == WPAD_EXT_CORE || kpad_data.extensionType == WPAD_EXT_NUNCHUK) {
-                        buttonsTriggered |= remapWiiMoteButtons(kpad_data.trigger);
-                    } else {
-                        buttonsTriggered |= remapClassicButtons(kpad_data.classic.trigger);
+        int durationInFrames = 60;
+        int frameCounter     = 0;
+        KPADInit();
+        WPADEnableURCC(true);
+
+        while (true) {
+            buttonsTriggered = 0;
+
+            VPADRead(VPAD_CHAN_0, &vpad_data, 1, &vpad_error);
+            if (vpad_error == VPAD_READ_SUCCESS) {
+                buttonsTriggered = vpad_data.trigger;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                memset(&kpad_data, 0, sizeof(kpad_data));
+                if (KPADReadEx((KPADChan) i, &kpad_data, 1, &kpad_error) > 0) {
+                    if (kpad_error == KPAD_ERROR_OK && kpad_data.extensionType != 0xFF) {
+                        if (kpad_data.extensionType == WPAD_EXT_CORE || kpad_data.extensionType == WPAD_EXT_NUNCHUK) {
+                            buttonsTriggered |= remapWiiMoteButtons(kpad_data.trigger);
+                        } else {
+                            buttonsTriggered |= remapClassicButtons(kpad_data.classic.trigger);
+                        }
                     }
                 }
             }
-        }
 
-        if (curState == 1) {
-            if (buttonsTriggered & VPAD_BUTTON_MINUS) {
-                curState = 0;
-                continue;
-            }
-
-            if (initScreen) {
-                OSScreenClearBufferEx(SCREEN_TV, 0);
-                OSScreenClearBufferEx(SCREEN_DRC, 0);
-                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
-                console_print_pos(x_offset, 1, "Preparing modpack \"%s\"...", modTitlePath.begin()->first.c_str());
-                console_print_pos(x_offset, 3, "Press MINUS to open menu");
-                // Flip buffers
-                OSScreenFlipBuffersEx(SCREEN_TV);
-                OSScreenFlipBuffersEx(SCREEN_DRC);
-            }
-
-            if (frameCounter >= durationInFrames) {
-                ReplaceContent(modTitlePath.begin()->second);
-                break;
-            }
-
-            frameCounter++;
-        } else {
-            if (buttonsTriggered & VPAD_BUTTON_A) {
-                wantToExit = 1;
-                initScreen = 1;
-            } else if (modTitlePath.size() == 1 && (buttonsTriggered & VPAD_BUTTON_MINUS)) {
-                OSScreenClearBufferEx(SCREEN_TV, 0);
-                OSScreenClearBufferEx(SCREEN_DRC, 0);
-
-                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
-                console_print_pos(x_offset, 1, "Save settings...");
-
-                // Flip buffers
-                OSScreenFlipBuffersEx(SCREEN_TV);
-                OSScreenFlipBuffersEx(SCREEN_DRC);
-
-                // We open the storage, so we can persist the configuration the user did.
-                if (WUPS_OpenStorage() == WUPS_STORAGE_ERROR_SUCCESS) {
-                    gAutoApplySingleModpack = !gAutoApplySingleModpack;
-                    // If the value has changed, we store it in the storage.
-                    if (WUPS_StoreInt(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
-                    }
-                    if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
-                        DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
-                    }
-                }
-                initScreen = 1;
-            } else if (buttonsTriggered & VPAD_BUTTON_B) {
-                break;
-            } else if (buttonsTriggered & VPAD_BUTTON_DOWN) {
-                selected++;
-                initScreen = 1;
-            } else if (buttonsTriggered & VPAD_BUTTON_UP) {
-                selected--;
-                initScreen = 1;
-            } else if (buttonsTriggered & VPAD_BUTTON_L) {
-                selected -= per_page;
-                initScreen = 1;
-            } else if (buttonsTriggered & VPAD_BUTTON_R) {
-                selected += per_page;
-                initScreen = 1;
-            }
-            if (selected < 0) { selected = 0; }
-            if (selected >= modTitlePath.size()) { selected = modTitlePath.size() - 1; }
-            page = selected / per_page;
-
-            if (initScreen) {
-                OSScreenClearBufferEx(SCREEN_TV, 0);
-                OSScreenClearBufferEx(SCREEN_DRC, 0);
-                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
-                console_print_pos(x_offset, 1, "Press A to launch a modpack");
-                console_print_pos(x_offset, 2, "Press B to launch without a modpack");
-                if (modTitlePath.size() == 1) {
-                    if (gAutoApplySingleModpack) {
-                        console_print_pos(x_offset, 4, "Press MINUS to disable autostart for a single modpack");
-                    } else {
-                        console_print_pos(x_offset, 4, "Press MINUS to enable autostart for a single modpack");
-                    }
-                }
-                int y_offset = displayAutoSkipOption ? 6 : 4;
-                int cur_     = 0;
-
-                for (auto &it : modTitlePath) {
-                    std::string key   = it.first;
-                    std::string value = it.second;
-
-                    if (wantToExit && cur_ == selected) {
-                        ReplaceContent(value);
-                        break;
-                    }
-
-                    if (cur_ >= (page * per_page) && cur_ < ((page + 1) * per_page)) {
-                        console_print_pos(x_offset, y_offset++, "%s %s", TEXT_SEL((selected == cur_), "--->", "    "), key.c_str());
-                    }
-                    cur_++;
+            if (curState == 1) {
+                if (buttonsTriggered & VPAD_BUTTON_MINUS) {
+                    curState = 0;
+                    continue;
                 }
 
-                if (wantToExit) { //just in case.
+                if (initScreen) {
+                    OSScreenClearBufferEx(SCREEN_TV, 0);
+                    OSScreenClearBufferEx(SCREEN_DRC, 0);
+                    console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
+                    console_print_pos(x_offset, 1, "Preparing modpack \"%s\"...", modTitlePath.begin()->first.c_str());
+                    console_print_pos(x_offset, 3, "Press MINUS to open menu");
+                    // Flip buffers
+                    OSScreenFlipBuffersEx(SCREEN_TV);
+                    OSScreenFlipBuffersEx(SCREEN_DRC);
+                }
+
+                if (frameCounter >= durationInFrames) {
+                    ReplaceContent(modTitlePath.begin()->second);
                     break;
                 }
 
-                if (max_pages > 0) {
-                    console_print_pos(x_offset, 17, "Page %02d/%02d. Press L/R to change page.", page + 1, max_pages);
+                frameCounter++;
+            } else {
+                if (buttonsTriggered & VPAD_BUTTON_A) {
+                    wantToExit = 1;
+                    initScreen = 1;
+                } else if (modTitlePath.size() == 1 && (buttonsTriggered & VPAD_BUTTON_MINUS)) {
+                    OSScreenClearBufferEx(SCREEN_TV, 0);
+                    OSScreenClearBufferEx(SCREEN_DRC, 0);
+
+                    console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
+                    console_print_pos(x_offset, 1, "Save settings...");
+
+                    // Flip buffers
+                    OSScreenFlipBuffersEx(SCREEN_TV);
+                    OSScreenFlipBuffersEx(SCREEN_DRC);
+
+                    // We open the storage, so we can persist the configuration the user did.
+                    if (WUPS_OpenStorage() == WUPS_STORAGE_ERROR_SUCCESS) {
+                        gAutoApplySingleModpack = !gAutoApplySingleModpack;
+                        // If the value has changed, we store it in the storage.
+                        if (WUPS_StoreInt(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
+                        }
+                        if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
+                            DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
+                        }
+                    }
+                    initScreen = 1;
+                } else if (buttonsTriggered & VPAD_BUTTON_B) {
+                    break;
+                } else if (buttonsTriggered & VPAD_BUTTON_DOWN) {
+                    selected++;
+                    initScreen = 1;
+                } else if (buttonsTriggered & VPAD_BUTTON_UP) {
+                    selected--;
+                    initScreen = 1;
+                } else if (buttonsTriggered & VPAD_BUTTON_L) {
+                    selected -= per_page;
+                    initScreen = 1;
+                } else if (buttonsTriggered & VPAD_BUTTON_R) {
+                    selected += per_page;
+                    initScreen = 1;
                 }
+                if (selected < 0) { selected = 0; }
+                if (selected >= modTitlePath.size()) { selected = modTitlePath.size() - 1; }
+                page = selected / per_page;
 
-                // Flip buffers
-                OSScreenFlipBuffersEx(SCREEN_TV);
-                OSScreenFlipBuffersEx(SCREEN_DRC);
+                if (initScreen) {
+                    OSScreenClearBufferEx(SCREEN_TV, 0);
+                    OSScreenClearBufferEx(SCREEN_DRC, 0);
+                    console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
+                    console_print_pos(x_offset, 1, "Press A to launch a modpack");
+                    console_print_pos(x_offset, 2, "Press B to launch without a modpack");
+                    if (modTitlePath.size() == 1) {
+                        if (gAutoApplySingleModpack) {
+                            console_print_pos(x_offset, 4, "Press MINUS to disable autostart for a single modpack");
+                        } else {
+                            console_print_pos(x_offset, 4, "Press MINUS to enable autostart for a single modpack");
+                        }
+                    }
+                    int y_offset = displayAutoSkipOption ? 6 : 4;
+                    int cur_     = 0;
 
-                initScreen = 0;
+                    for (auto &it : modTitlePath) {
+                        std::string key   = it.first;
+                        std::string value = it.second;
+
+                        if (wantToExit && cur_ == selected) {
+                            ReplaceContent(value);
+                            break;
+                        }
+
+                        if (cur_ >= (page * per_page) && cur_ < ((page + 1) * per_page)) {
+                            console_print_pos(x_offset, y_offset++, "%s %s", TEXT_SEL((selected == cur_), "--->", "    "), key.c_str());
+                        }
+                        cur_++;
+                    }
+
+                    if (wantToExit) { //just in case.
+                        break;
+                    }
+
+                    if (max_pages > 0) {
+                        console_print_pos(x_offset, 17, "Page %02d/%02d. Press L/R to change page.", page + 1, max_pages);
+                    }
+
+                    // Flip buffers
+                    OSScreenFlipBuffersEx(SCREEN_TV);
+                    OSScreenFlipBuffersEx(SCREEN_DRC);
+
+                    initScreen = 0;
+                }
             }
         }
-    }
 
-    KPADShutdown();
+        KPADShutdown();
+    }
     OSScreenClearBufferEx(SCREEN_TV, 0);
     OSScreenClearBufferEx(SCREEN_DRC, 0);
 
