@@ -16,6 +16,8 @@ Requires the [ContentRedirectionModule](https://github.com/wiiu-env/ContentRedir
 3. Requires the [ContentRedirectionModule](https://github.com/wiiu-env/ContentRedirectionModule) in `sd:/wiiu/environments/[ENVIRONMENT]/modules`.
 
 ## Usage
+**The path of SDCafiine has changed to `sd:/wiiu/sdcafiine`**
+
 Via the plugin config menu (press L, DPAD Down and Minus on the gamepad) you can configure the plugin. The available options are the following:
 - **Settings**: 
   - Enable SDCafiine:
@@ -31,8 +33,8 @@ Before the mods can be loaded, they need to be copied to a SD card.
 **In the following "root:/" is corresponding to the root of your SD card**. The basic filepath structure is this:
 
 ```
-root:/sdcafiine/[TITLEID]/[MODPACK]/content/  <-- for game files. Maps to /vol/content/
-root:/sdcafiine/[TITLEID]/[MODPACK]/aoc/  <-- for DLC files. Maps to /vol/aoc/
+root:/wiiu/sdcafiine/[TITLEID]/[MODPACK]/content/  <-- for game files. Maps to /vol/content/
+root:/wiiu/sdcafiine/[TITLEID]/[MODPACK]/aoc/  <-- for DLC files. Maps to /vol/aoc/
 ```
 Replace the following:
 - "[TITLEID]" need to be replaced the TitleID of the games that should be modded. A list of title ids can be found [here](http://wiiubrew.org/w/index.php?title=Title_database#00050000:_eShop_and_disc_titles) (without the "-"). Example for SSBU "0005000010145000". Make sure to use the ID of the fullgame and not the update title ID. 
@@ -40,21 +42,21 @@ Replace the following:
 
 Example path for the EUR version of SuperSmashBros for Wii U:
 ```
-root:/sdcafiine/0005000010145000/SpecialChars/content/  <-- for game files. Maps to /vol/content/
-root:/sdcafiine/0005000010145000/SpecialChars/aoc/  <-- for DLC files. Maps to /vol/aoc/
+root:/wiiu/sdcafiine/0005000010145000/SpecialChars/content/  <-- for game files. Maps to /vol/content/
+root:/wiiu/sdcafiine/0005000010145000/SpecialChars/aoc/  <-- for DLC files. Maps to /vol/aoc/
 ```
 
 For replacing the file /vol/content/movie/intro.mp4, put a modified file into:
 ```
-root:/sdcafiine/0005000010145000/SpecialChars/content/movie/intro.mp4
+root:/wiiu/sdcafiine/0005000010145000/SpecialChars/content/movie/intro.mp4
 ```
 
 ### Handling multiple mod packs
 SDCafiine supports multiple different mods for a single game on the same SD card. Each modpack has its own subdirectory.
 Example:
 ```
-sd:/sdcafiine/0005000010145000/ModPack1/content/
-sd:/sdcafiine/0005000010145000/ModPack2/content/
+sd:/wiiu/sdcafiine/0005000010145000/ModPack1/content/
+sd:/wiiu/sdcafiine/0005000010145000/ModPack2/content/
 ```
 ### "Delete" files via SDCafiine
 If a game should not see or access a file anymore, it's possible to "delete"/"hide" it from the game without actually deleting it. 
@@ -62,7 +64,7 @@ The process is similar to redirecting a file. But instead of creating a replacem
 
 If you want to stop a game from accessing `/vol/content/assets/tree.bin` you need to create this file in your modpack.
 ```
-root:/sdcafiine/[TITLEID]/[MODPACK]/content/assets/.deleted_tree.bin
+root:/wiiu/sdcafiine/[TITLEID]/[MODPACK]/content/assets/.deleted_tree.bin
 ```
 
 ## Buildflags

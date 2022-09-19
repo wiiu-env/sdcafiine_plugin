@@ -27,7 +27,8 @@ void HandleMultiModPacks(uint64_t titleID) {
 
     std::map<std::string, std::string> mounting_points;
 
-    const std::string modTitleIDPath = std::string("fs:/vol/external01/sdcafiine/").append(TitleIDString);
+    const std::string modTitleIDPath    = std::string("fs:/vol/external01/wiiu/sdcafiine/").append(TitleIDString);
+    const std::string modTitleIDPathOld = std::string("fs:/vol/external01/sdcafiine/").append(TitleIDString);
     DirList modTitleDirList(modTitleIDPath, nullptr, DirList::Dirs);
 
     modTitleDirList.SortList();
@@ -42,10 +43,6 @@ void HandleMultiModPacks(uint64_t titleID) {
         const std::string &packageName = curFile;
         modTitlePath[packageName]      = (modTitleIDPath + "/").append(curFile);
         DEBUG_FUNCTION_LINE_VERBOSE("Found %s  %s", packageName.c_str(), modTitlePath[packageName].c_str());
-    }
-
-    if (modTitlePath.empty()) {
-        return;
     }
 
     int selected   = 0;
@@ -75,7 +72,23 @@ void HandleMultiModPacks(uint64_t titleID) {
     OSScreenFlipBuffersEx(SCREEN_TV);
     OSScreenFlipBuffersEx(SCREEN_DRC);
 
-    if (modTitlePath.size() == 1 && gSkipPrepareIfSingleModpack) {
+    if (modTitlePath.empty()) {
+        DIR *dir = opendir(modTitleIDPathOld.c_str());
+        if (dir) {
+            console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
+            console_print_pos(-2, 2, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            console_print_pos(-2, 3, "!!!         OLD DIRECTORY STRUCTURE DETECTED.           !!!");
+            console_print_pos(-2, 4, "!!! Please migrate sd:/sdcafiine to sd:/wiiu/sdcafiine. !!!");
+            console_print_pos(-2, 5, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            console_print_pos(-2, 7, "Loading game without mods");
+            closedir(dir);
+
+            OSScreenFlipBuffersEx(SCREEN_TV);
+            OSScreenFlipBuffersEx(SCREEN_DRC);
+
+            OSSleepTicks(OSMillisecondsToTicks(10000));
+        }
+    } else if (modTitlePath.size() == 1 && gSkipPrepareIfSingleModpack) {
         ReplaceContent(modTitlePath.begin()->second, modTitlePath.begin()->first);
 
     } else {
