@@ -5,11 +5,10 @@
 #include <coreinit/title.h>
 #include <wups.h>
 #include <wups/config/WUPSConfigItemBoolean.h>
-#include <wups/config/WUPSConfigItemMultipleValues.h>
 
 WUPS_PLUGIN_NAME("SDCafiine");
 WUPS_PLUGIN_DESCRIPTION("SDCafiine");
-WUPS_PLUGIN_VERSION(VERSION_FULL_RAW);
+WUPS_PLUGIN_VERSION(VERSION_FULL);
 WUPS_PLUGIN_AUTHOR("Maschell");
 WUPS_PLUGIN_LICENSE("GPL");
 
