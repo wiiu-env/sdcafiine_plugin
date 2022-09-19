@@ -8,6 +8,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <dirent.h>
 #include <fs/DirList.h>
 #include <malloc.h>
 #include <map>
@@ -76,7 +77,7 @@ void HandleMultiModPacks(uint64_t titleID) {
     OSScreenFlipBuffersEx(SCREEN_DRC);
 
     if (modTitlePath.size() == 1 && gSkipPrepareIfSingleModpack) {
-        ReplaceContent(modTitlePath.begin()->second);
+        ReplaceContent(modTitlePath.begin()->second, modTitlePath.begin()->first);
 
     } else {
 
@@ -143,7 +144,7 @@ void HandleMultiModPacks(uint64_t titleID) {
                 }
 
                 if (frameCounter >= durationInFrames) {
-                    ReplaceContent(modTitlePath.begin()->second);
+                    ReplaceContent(modTitlePath.begin()->second, modTitlePath.begin()->first);
                     break;
                 }
 
@@ -214,7 +215,7 @@ void HandleMultiModPacks(uint64_t titleID) {
                         std::string value = it.second;
 
                         if (wantToExit && cur_ == selected) {
-                            ReplaceContent(value);
+                            ReplaceContent(value, key);
                             break;
                         }
 
@@ -257,20 +258,57 @@ extern CRLayerHandle aocLayerHandle;
 
 bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle);
 
-bool ReplaceContent(const std::string &basePath) {
+bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
     bool contentRes = ReplaceContentInternal(basePath, "content", &contentLayerHandle);
     bool aocRes     = ReplaceContentInternal(basePath, "aoc", &aocLayerHandle);
 
     if (!contentRes && !aocRes) {
-        DEBUG_FUNCTION_LINE_ERR("Failed to apply modpack. Starting without mods.");
+        uint32_t sleepTime = 3000;
+        DEBUG_FUNCTION_LINE_ERR("Failed to apply the modpack. Starting without mods.");
         OSScreenClearBufferEx(SCREEN_TV, 0);
         OSScreenClearBufferEx(SCREEN_DRC, 0);
         console_print_pos(-2, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
-        console_print_pos(-2, 1, "Failed to apply modpack. Starting without mods.");
+        console_print_pos(-2, 1, "Failed to apply the modpack. Starting without mods...");
+        bool folderExists = false;
+        struct stat st {};
+        std::string contentPath = (std::string(modpack) + "/content");
+        if (stat(contentPath.c_str(), &st) >= 0) {
+            folderExists = true;
+        } else {
+            console_print_pos(-2, 3, "No /vol/content replacement found (%s)", contentPath.c_str());
+        }
+
+        std::string aocPath = (std::string(modpack) + "/aoc");
+        if (stat(aocPath.c_str(), &st) >= 0) {
+            folderExists = true;
+        } else {
+            console_print_pos(-2, 4, "No /vol/aoc replacement found (%s)", aocPath.c_str());
+        }
+        if (folderExists) {
+            console_print_pos(-2, 6, "ContentRedirection_AddFSLayer failed");
+        } else {
+            sleepTime = 5000;
+            console_print_pos(-2, 6, "You need at least one of the replacements!");
+
+            DIR *dir = opendir(basePath.c_str());
+            if (dir) {
+                auto res = readdir(dir);
+                if (res != nullptr) {
+                    sleepTime = 7000;
+                    console_print_pos(-2, 8, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                    console_print_pos(-2, 9, "!!! OLD DIRECTORY STRUCTURE DETECTED.                          !!!");
+                    console_print_pos(-2, 10, "!!! Please migrate to the new directory structure.             !!!");
+                    console_print_pos(-2, 11, R"(!!! Move the files into the "content" directory of the modpack !!!)");
+                    console_print_pos(-2, 12, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                }
+                closedir(dir);
+            }
+        }
+
         OSScreenFlipBuffersEx(SCREEN_TV);
         OSScreenFlipBuffersEx(SCREEN_DRC);
 
-        OSSleepTicks(OSMillisecondsToTicks(3000));
+        OSSleepTicks(OSMillisecondsToTicks(sleepTime));
         return false;
     }
     return true;
