@@ -1,5 +1,6 @@
 #include "modpackSelector.h"
 #include "main.h"
+#include "utils/input.h"
 #include "version.h"
 #include <content_redirection/redirection.h>
 #include <coreinit/screen.h>
@@ -13,7 +14,6 @@
 #include <memory/mappedmemory.h>
 #include <string>
 #include <utils/logger.h>
-#include <vpad/input.h>
 #include <wups/storage.h>
 
 #define TEXT_SEL(x, text1, text2) ((x) ? (text1) : (text2))
@@ -78,8 +78,12 @@ void HandleMultiModPacks(uint64_t titleID) {
     OSScreenFlipBuffersEx(SCREEN_TV);
     OSScreenFlipBuffersEx(SCREEN_DRC);
 
-    VPADStatus vpad_data;
-    VPADReadError error;
+    uint32_t buttonsTriggered;
+
+    VPADStatus vpad_data{};
+    VPADReadError vpad_error;
+    KPADStatus kpad_data{};
+    KPADError kpad_error;
 
     bool displayAutoSkipOption = modTitlePath.size() == 1;
 
@@ -95,24 +99,42 @@ void HandleMultiModPacks(uint64_t titleID) {
 
     int durationInFrames = 60;
     int frameCounter     = 0;
+    KPADInit();
+    WPADEnableURCC(true);
 
     while (true) {
-        error = VPAD_READ_NO_SAMPLES;
-        VPADRead(VPAD_CHAN_0, &vpad_data, 1, &error);
+        buttonsTriggered = 0;
 
-        if (curState == 1) {
-            if (error == VPAD_READ_SUCCESS) {
-                if (vpad_data.trigger & VPAD_BUTTON_X) {
-                    curState = 0;
-                    continue;
+        VPADRead(VPAD_CHAN_0, &vpad_data, 1, &vpad_error);
+        if (vpad_error == VPAD_READ_SUCCESS) {
+            buttonsTriggered = vpad_data.trigger;
+        }
+
+        for (int i = 0; i < 4; i++) {
+            memset(&kpad_data, 0, sizeof(kpad_data));
+            if (KPADReadEx((KPADChan) i, &kpad_data, 1, &kpad_error) > 0) {
+                if (kpad_error == KPAD_ERROR_OK && kpad_data.extensionType != 0xFF) {
+                    if (kpad_data.extensionType == WPAD_EXT_CORE || kpad_data.extensionType == WPAD_EXT_NUNCHUK) {
+                        buttonsTriggered |= remapWiiMoteButtons(kpad_data.trigger);
+                    } else {
+                        buttonsTriggered |= remapClassicButtons(kpad_data.classic.trigger);
+                    }
                 }
             }
+        }
+
+        if (curState == 1) {
+            if (buttonsTriggered & VPAD_BUTTON_MINUS) {
+                curState = 0;
+                continue;
+            }
+
             if (initScreen) {
                 OSScreenClearBufferEx(SCREEN_TV, 0);
                 OSScreenClearBufferEx(SCREEN_DRC, 0);
-                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
                 console_print_pos(x_offset, 1, "Preparing modpack \"%s\"...", modTitlePath.begin()->first.c_str());
-                console_print_pos(x_offset, 3, "Press X to open menu");
+                console_print_pos(x_offset, 3, "Press MINUS to open menu");
                 // Flip buffers
                 OSScreenFlipBuffersEx(SCREEN_TV);
                 OSScreenFlipBuffersEx(SCREEN_DRC);
@@ -125,63 +147,61 @@ void HandleMultiModPacks(uint64_t titleID) {
 
             frameCounter++;
         } else {
-            if (error == VPAD_READ_SUCCESS) {
-                if (vpad_data.trigger & VPAD_BUTTON_A) {
-                    wantToExit = 1;
-                    initScreen = 1;
-                } else if (modTitlePath.size() == 1 && (vpad_data.trigger & VPAD_BUTTON_X)) {
-                    OSScreenClearBufferEx(SCREEN_TV, 0);
-                    OSScreenClearBufferEx(SCREEN_DRC, 0);
+            if (buttonsTriggered & VPAD_BUTTON_A) {
+                wantToExit = 1;
+                initScreen = 1;
+            } else if (modTitlePath.size() == 1 && (buttonsTriggered & VPAD_BUTTON_MINUS)) {
+                OSScreenClearBufferEx(SCREEN_TV, 0);
+                OSScreenClearBufferEx(SCREEN_DRC, 0);
 
-                    console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
-                    console_print_pos(x_offset, 1, "Save settings...");
+                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
+                console_print_pos(x_offset, 1, "Save settings...");
 
-                    // Flip buffers
-                    OSScreenFlipBuffersEx(SCREEN_TV);
-                    OSScreenFlipBuffersEx(SCREEN_DRC);
+                // Flip buffers
+                OSScreenFlipBuffersEx(SCREEN_TV);
+                OSScreenFlipBuffersEx(SCREEN_DRC);
 
-                    // We open the storage, so we can persist the configuration the user did.
-                    if (WUPS_OpenStorage() == WUPS_STORAGE_ERROR_SUCCESS) {
-                        gAutoApplySingleModpack = !gAutoApplySingleModpack;
-                        // If the value has changed, we store it in the storage.
-                        if (WUPS_StoreInt(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
-                        }
-                        if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
-                            DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
-                        }
+                // We open the storage, so we can persist the configuration the user did.
+                if (WUPS_OpenStorage() == WUPS_STORAGE_ERROR_SUCCESS) {
+                    gAutoApplySingleModpack = !gAutoApplySingleModpack;
+                    // If the value has changed, we store it in the storage.
+                    if (WUPS_StoreInt(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
                     }
-                    initScreen = 1;
-                } else if (vpad_data.trigger & VPAD_BUTTON_B) {
-                    break;
-                } else if (vpad_data.trigger & VPAD_BUTTON_DOWN) {
-                    selected++;
-                    initScreen = 1;
-                } else if (vpad_data.trigger & VPAD_BUTTON_UP) {
-                    selected--;
-                    initScreen = 1;
-                } else if (vpad_data.trigger & VPAD_BUTTON_L) {
-                    selected -= per_page;
-                    initScreen = 1;
-                } else if (vpad_data.trigger & VPAD_BUTTON_R) {
-                    selected += per_page;
-                    initScreen = 1;
+                    if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
+                        DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
+                    }
                 }
-                if (selected < 0) { selected = 0; }
-                if (selected >= modTitlePath.size()) { selected = modTitlePath.size() - 1; }
-                page = selected / per_page;
+                initScreen = 1;
+            } else if (buttonsTriggered & VPAD_BUTTON_B) {
+                break;
+            } else if (buttonsTriggered & VPAD_BUTTON_DOWN) {
+                selected++;
+                initScreen = 1;
+            } else if (buttonsTriggered & VPAD_BUTTON_UP) {
+                selected--;
+                initScreen = 1;
+            } else if (buttonsTriggered & VPAD_BUTTON_L) {
+                selected -= per_page;
+                initScreen = 1;
+            } else if (buttonsTriggered & VPAD_BUTTON_R) {
+                selected += per_page;
+                initScreen = 1;
             }
+            if (selected < 0) { selected = 0; }
+            if (selected >= modTitlePath.size()) { selected = modTitlePath.size() - 1; }
+            page = selected / per_page;
 
             if (initScreen) {
                 OSScreenClearBufferEx(SCREEN_TV, 0);
                 OSScreenClearBufferEx(SCREEN_DRC, 0);
-                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+                console_print_pos(x_offset, -1, "SDCafiine plugin " VERSION_FULL);
                 console_print_pos(x_offset, 1, "Press A to launch a modpack");
                 console_print_pos(x_offset, 2, "Press B to launch without a modpack");
                 if (modTitlePath.size() == 1) {
                     if (gAutoApplySingleModpack) {
-                        console_print_pos(x_offset, 4, "Press X to disable autostart for a single modpack");
+                        console_print_pos(x_offset, 4, "Press MINUS to disable autostart for a single modpack");
                     } else {
-                        console_print_pos(x_offset, 4, "Press X to enable autostart for a single modpack");
+                        console_print_pos(x_offset, 4, "Press MINUS to enable autostart for a single modpack");
                     }
                 }
                 int y_offset = displayAutoSkipOption ? 6 : 4;
@@ -219,6 +239,7 @@ void HandleMultiModPacks(uint64_t titleID) {
         }
     }
 
+    KPADShutdown();
     OSScreenClearBufferEx(SCREEN_TV, 0);
     OSScreenClearBufferEx(SCREEN_DRC, 0);
 
