@@ -48,7 +48,6 @@ void HandleMultiModPacks(uint64_t titleID) {
         return;
     }
 
-
     int selected   = 0;
     int initScreen = 1;
     int x_offset   = -2;
@@ -92,8 +91,8 @@ void HandleMultiModPacks(uint64_t titleID) {
 
         int wantToExit = 0;
         int page       = 0;
-        int per_page   = displayAutoSkipOption ? 11 : 13;
-        int max_pages  = (modTitlePath.size() / per_page) + 1;
+        int per_page   = displayAutoSkipOption ? 11 : 12;
+        int max_pages  = (modTitlePath.size() / per_page) + (modTitlePath.size() % per_page != 0 ? 1 : 0);
 
         int curState = 0;
         if (gAutoApplySingleModpack && modTitlePath.size() == 1) {
