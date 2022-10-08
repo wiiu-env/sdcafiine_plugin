@@ -19,10 +19,11 @@
 
 #define TEXT_SEL(x, text1, text2) ((x) ? (text1) : (text2))
 
-uint8_t *screenBuffer = nullptr;
+uint8_t *screenBuffer_0 = nullptr;
+uint8_t *screenBuffer_1 = nullptr;
 
 bool ScreenInit() {
-    if (screenBuffer != nullptr) {
+    if (screenBuffer_0 != nullptr) {
         // allocated
         return true;
     }
@@ -30,14 +31,23 @@ bool ScreenInit() {
     OSScreenInit();
     uint32_t screen_buf0_size = OSScreenGetBufferSizeEx(SCREEN_TV);
     uint32_t screen_buf1_size = OSScreenGetBufferSizeEx(SCREEN_DRC);
-    screenBuffer              = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf0_size + screen_buf1_size, 0x100);
-    if (screenBuffer == nullptr) {
-        DEBUG_FUNCTION_LINE_ERR("Failed to alloc screenBuffer");
-        OSFatal("SDCafiine plugin: Failed to alloc screenBuffer.");
+    screenBuffer_0            = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf0_size, 0x100);
+    screenBuffer_1            = (uint8_t *) MEMAllocFromMappedMemoryForGX2Ex(screen_buf1_size, 0x100);
+    if (screenBuffer_0 == nullptr || screenBuffer_1 == nullptr) {
+        if (screenBuffer_0) {
+            MEMFreeToMappedMemory(screenBuffer_0);
+            screenBuffer_0 = nullptr;
+        }
+        if (screenBuffer_1) {
+            MEMFreeToMappedMemory(screenBuffer_1);
+            screenBuffer_1 = nullptr;
+        }
+        DEBUG_FUNCTION_LINE_ERR("Failed to allocate screenBuffer");
+        OSFatal("SDCafiine plugin: Failed to allocate screenBuffer.");
         return false;
     }
-    OSScreenSetBufferEx(SCREEN_TV, (void *) screenBuffer);
-    OSScreenSetBufferEx(SCREEN_DRC, (void *) (screenBuffer + screen_buf0_size));
+    OSScreenSetBufferEx(SCREEN_TV, (void *) screenBuffer_0);
+    OSScreenSetBufferEx(SCREEN_DRC, (void *) (screenBuffer_1));
 
     OSScreenEnableEx(SCREEN_TV, 1);
     OSScreenEnableEx(SCREEN_DRC, 1);
@@ -58,15 +68,20 @@ bool ScreenDeInit() {
     // Flip buffers
     OSScreenFlipBuffersEx(SCREEN_TV);
     OSScreenFlipBuffersEx(SCREEN_DRC);
-    if (screenBuffer != nullptr) {
-        MEMFreeToMappedMemory(screenBuffer);
-        screenBuffer = nullptr;
+    if (screenBuffer_0) {
+        MEMFreeToMappedMemory(screenBuffer_0);
+        screenBuffer_0 = nullptr;
+    }
+    if (screenBuffer_1) {
+        MEMFreeToMappedMemory(screenBuffer_1);
+        screenBuffer_1 = nullptr;
     }
     return true;
 }
 
 void HandleMultiModPacks(uint64_t titleID) {
-    screenBuffer = nullptr;
+    screenBuffer_0 = nullptr;
+    screenBuffer_1 = nullptr;
     char TitleIDString[17];
     snprintf(TitleIDString, 17, "%016llX", titleID);
 
@@ -303,7 +318,7 @@ bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
     bool aocRes     = ReplaceContentInternal(basePath, "aoc", &aocLayerHandle);
 
     if (!contentRes && !aocRes) {
-        auto screenWasAllocated = screenBuffer != nullptr;
+        auto screenWasAllocated = screenBuffer_0 != nullptr;
 
         if (!ScreenInit()) {
             OSFatal("Failed to apply the modpack.");
