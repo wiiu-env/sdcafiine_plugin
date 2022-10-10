@@ -389,7 +389,7 @@ bool ReplaceContentInternal(const std::string &basePath, const std::string &subd
     auto res = ContentRedirection_AddFSLayer(layerHandle,
                                              layerName.c_str(),
                                              fullPath.c_str(),
-                                             FS_LAYER_TYPE_CONTENT_MERGE);
+                                             subdir == "aoc" ? FS_LAYER_TYPE_AOC_MERGE : FS_LAYER_TYPE_CONTENT_MERGE);
     if (res == CONTENT_REDIRECTION_RESULT_SUCCESS) {
         DEBUG_FUNCTION_LINE("Redirect /vol/%s to %s", subdir.c_str(), fullPath.c_str());
     } else {
