@@ -15,12 +15,21 @@ WUPS_PLUGIN_LICENSE("GPL");
 WUPS_USE_WUT_DEVOPTAB();
 WUPS_USE_STORAGE("sdcafiine"); // Unqiue id for the storage api
 
-CRLayerHandle contentLayerHandle __attribute__((section(".data"))) = 0;
-CRLayerHandle aocLayerHandle __attribute__((section(".data")))     = 0;
+CRLayerHandle sContentLayerHandle = 0;
+CRLayerHandle sAocLayerHandle     = 0;
 
-bool gAutoApplySingleModpack     = false;
-bool gSkipPrepareIfSingleModpack = false;
-bool gSDCafiineEnabled           = true;
+#define DEFAULT_AUTO_APPLY_SINGLE_MODPACK      false
+#define DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK false
+#define DEFAULT_SDCAFIINE_ENABLED              true
+
+bool gAutoApplySingleModpack     = DEFAULT_AUTO_APPLY_SINGLE_MODPACK;
+bool gSkipPrepareIfSingleModpack = DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK;
+bool gSDCafiineEnabled           = DEFAULT_SDCAFIINE_ENABLED;
+
+
+WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle);
+
+void ConfigMenuClosedCallback();
 
 INITIALIZE_PLUGIN() {
     // But then use libcontentredirection instead.
@@ -30,46 +39,27 @@ INITIALIZE_PLUGIN() {
         OSFatal("Failed to init ContentRedirection.");
     }
 
-    // Open storage to read values
-    WUPSStorageError storageRes = WUPS_OpenStorage();
-    if (storageRes != WUPS_STORAGE_ERROR_SUCCESS) {
-        DEBUG_FUNCTION_LINE_ERR("Failed to open storage %s (%d)", WUPS_GetStorageStatusStr(storageRes), storageRes);
-    } else {
-        // Try to get value from storage
-        if ((storageRes = WUPS_GetBool(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, &gAutoApplySingleModpack)) == WUPS_STORAGE_ERROR_NOT_FOUND) {
-            // Add the value to the storage if it's missing.
-            if (WUPS_StoreBool(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
-                DEBUG_FUNCTION_LINE_ERR("Failed to store bool");
-            }
-        } else if (storageRes != WUPS_STORAGE_ERROR_SUCCESS) {
-            DEBUG_FUNCTION_LINE_ERR("Failed to get bool %s (%d)", WUPS_GetStorageStatusStr(storageRes), storageRes);
-        }
-
-        if ((storageRes = WUPS_GetBool(nullptr, SDCAFIINE_ENABLED_STRING, &gSDCafiineEnabled)) == WUPS_STORAGE_ERROR_NOT_FOUND) {
-            // Add the value to the storage if it's missing.
-            if (WUPS_StoreBool(nullptr, SDCAFIINE_ENABLED_STRING, gSDCafiineEnabled) != WUPS_STORAGE_ERROR_SUCCESS) {
-                DEBUG_FUNCTION_LINE_ERR("Failed to store bool");
-            }
-        } else if (storageRes != WUPS_STORAGE_ERROR_SUCCESS) {
-            DEBUG_FUNCTION_LINE_ERR("Failed to get bool %s (%d)", WUPS_GetStorageStatusStr(storageRes), storageRes);
-        }
-
-        if ((storageRes = WUPS_GetBool(nullptr, SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, &gSkipPrepareIfSingleModpack)) == WUPS_STORAGE_ERROR_NOT_FOUND) {
-            // Add the value to the storage if it's missing.
-            if (WUPS_StoreBool(nullptr, SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, gSkipPrepareIfSingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
-                DEBUG_FUNCTION_LINE_ERR("Failed to store bool");
-            }
-        } else if (storageRes != WUPS_STORAGE_ERROR_SUCCESS) {
-            DEBUG_FUNCTION_LINE_ERR("Failed to get bool %s (%d)", WUPS_GetStorageStatusStr(storageRes), storageRes);
-        }
-
-        // Close storage
-        if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
-            DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
-        }
+    if (WUPSStorageAPI::GetOrStoreDefault(AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack, DEFAULT_AUTO_APPLY_SINGLE_MODPACK) != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\"", AUTO_APPLY_SINGLE_MODPACK_STRING);
     }
-    contentLayerHandle = 0;
-    aocLayerHandle     = 0;
+    if (WUPSStorageAPI::GetOrStoreDefault(SDCAFIINE_ENABLED_STRING, gSDCafiineEnabled, DEFAULT_SDCAFIINE_ENABLED) != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\"", SDCAFIINE_ENABLED_STRING);
+    }
+    if (WUPSStorageAPI::GetOrStoreDefault(SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, gSkipPrepareIfSingleModpack, DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK) != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\"", gSkipPrepareIfSingleModpack);
+    }
+
+    if (WUPSStorageAPI::SaveStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to save storage");
+    }
+
+    WUPSConfigAPIOptionsV1 configOptions = {.name = "SDCafiine"};
+    if (WUPSConfigAPI_Init(configOptions, ConfigMenuOpenedCallback, ConfigMenuClosedCallback) != WUPSCONFIG_API_RESULT_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to init config api");
+    }
+
+    sContentLayerHandle = 0;
+    sAocLayerHandle     = 0;
 }
 
 /* Entry point */
@@ -86,60 +76,75 @@ void autoApplySingleModpackChanged(ConfigItemBoolean *item, bool newValue) {
     DEBUG_FUNCTION_LINE("New value in gAutoApplySingleModpack: %d", newValue);
     gAutoApplySingleModpack = newValue;
     // If the value has changed, we store it in the storage.
-    WUPS_StoreInt(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack);
+    if (WUPSStorageAPI::Store(AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
+    }
 }
 
 void skipPrepareIfSingleModpackChanged(ConfigItemBoolean *item, bool newValue) {
     DEBUG_FUNCTION_LINE("New value in gSkipPrepareIfSingleModpack: %d", newValue);
     gSkipPrepareIfSingleModpack = newValue;
     // If the value has changed, we store it in the storage.
-    WUPS_StoreInt(nullptr, SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, gSkipPrepareIfSingleModpack);
+    if (WUPSStorageAPI::Store(SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, gSkipPrepareIfSingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
+    }
 }
 
 void sdCafiineEnabledChanged(ConfigItemBoolean *item, bool newValue) {
     DEBUG_FUNCTION_LINE("New value in gSDCafiineEnabled: %d", newValue);
     gSDCafiineEnabled = newValue;
     // If the value has changed, we store it in the storage.
-    WUPS_StoreInt(nullptr, SDCAFIINE_ENABLED_STRING, gSDCafiineEnabled);
-}
-
-WUPS_GET_CONFIG() {
-    // We open the storage, so we can persist the configuration the user did.
-    if (WUPS_OpenStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
-        DEBUG_FUNCTION_LINE_ERR("Failed to open storage");
-        return 0;
+    if (WUPSStorageAPI::Store(SDCAFIINE_ENABLED_STRING, gSDCafiineEnabled) != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
     }
-
-    WUPSConfigHandle config;
-    WUPSConfig_CreateHandled(&config, "SDCafiine");
-
-    WUPSConfigCategoryHandle setting;
-    WUPSConfig_AddCategoryByNameHandled(config, "Settings", &setting);
-    WUPSConfigCategoryHandle advanced;
-    WUPSConfig_AddCategoryByNameHandled(config, "Advanced settings", &advanced);
-
-    WUPSConfigItemBoolean_AddToCategoryHandled(config, setting, SDCAFIINE_ENABLED_STRING, "Enable SDCafiine (game needs to be restarted)", gSDCafiineEnabled, &sdCafiineEnabledChanged);
-    WUPSConfigItemBoolean_AddToCategoryHandled(config, advanced, AUTO_APPLY_SINGLE_MODPACK_STRING, "Auto apply the modpack if only one modpack exists", gAutoApplySingleModpack, &autoApplySingleModpackChanged);
-    WUPSConfigItemBoolean_AddToCategoryHandled(config, advanced, SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, "Skip \"Preparing modpack...\" screen", gSkipPrepareIfSingleModpack, &skipPrepareIfSingleModpackChanged);
-
-    return config;
 }
 
-WUPS_CONFIG_CLOSED() {
+WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle) {
+    try {
+        WUPSConfigCategory root = WUPSConfigCategory(rootHandle);
+
+
+        root.add(WUPSConfigItemBoolean::Create(SDCAFIINE_ENABLED_STRING,
+                                               "Enable SDCafiine (game needs to be restarted)",
+                                               DEFAULT_SDCAFIINE_ENABLED, gSDCafiineEnabled,
+                                               &sdCafiineEnabledChanged));
+
+
+        auto advancedSettings = WUPSConfigCategory::Create("Advanced settings");
+
+        advancedSettings.add(WUPSConfigItemBoolean::Create(AUTO_APPLY_SINGLE_MODPACK_STRING,
+                                                           "Auto apply the modpack if only one modpack exists",
+                                                           DEFAULT_AUTO_APPLY_SINGLE_MODPACK, gAutoApplySingleModpack,
+                                                           &autoApplySingleModpackChanged));
+
+        advancedSettings.add(WUPSConfigItemBoolean::Create(SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING,
+                                                           "Skip \"Preparing modpack...\" screen",
+                                                           DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK, gSkipPrepareIfSingleModpack,
+                                                           &skipPrepareIfSingleModpackChanged));
+        root.add(std::move(advancedSettings));
+
+    } catch (std::exception &e) {
+        OSReport("Exception T_T : %s\n", e.what());
+        return WUPSCONFIG_API_CALLBACK_RESULT_ERROR;
+    }
+    return WUPSCONFIG_API_CALLBACK_RESULT_SUCCESS;
+}
+
+void ConfigMenuClosedCallback() {
     // Save all changes
-    if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
+    if (WUPSStorageAPI::SaveStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
         DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
     }
 }
 
 ON_APPLICATION_ENDS() {
-    if (contentLayerHandle != 0) {
-        ContentRedirection_RemoveFSLayer(contentLayerHandle);
-        contentLayerHandle = 0;
+    if (sContentLayerHandle != 0) {
+        ContentRedirection_RemoveFSLayer(sContentLayerHandle);
+        sContentLayerHandle = 0;
     }
-    if (aocLayerHandle != 0) {
-        ContentRedirection_RemoveFSLayer(aocLayerHandle);
-        aocLayerHandle = 0;
+    if (sAocLayerHandle != 0) {
+        ContentRedirection_RemoveFSLayer(sAocLayerHandle);
+        sAocLayerHandle = 0;
     }
     deinitLogging();
 }

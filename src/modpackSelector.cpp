@@ -226,16 +226,16 @@ void HandleMultiModPacks(uint64_t titleID) {
                 OSScreenFlipBuffersEx(SCREEN_TV);
                 OSScreenFlipBuffersEx(SCREEN_DRC);
 
-                // We open the storage, so we can persist the configuration the user did.
-                if (WUPS_OpenStorage() == WUPS_STORAGE_ERROR_SUCCESS) {
-                    gAutoApplySingleModpack = !gAutoApplySingleModpack;
-                    // If the value has changed, we store it in the storage.
-                    if (WUPS_StoreInt(nullptr, AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) != WUPS_STORAGE_ERROR_SUCCESS) {
-                    }
-                    if (WUPS_CloseStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
+
+                // If the value has changed, we store it in the storage.
+                if (WUPSStorageAPI::Store(AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) == WUPS_STORAGE_ERROR_SUCCESS) {
+                    if (WUPSStorageAPI::SaveStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
                         DEBUG_FUNCTION_LINE_ERR("Failed to close storage");
                     }
+                } else {
+                    DEBUG_FUNCTION_LINE_WARN("Failed to save to storage");
                 }
+
                 initScreen = 1;
             } else if (buttonsTriggered & VPAD_BUTTON_B) {
                 break;
@@ -308,14 +308,14 @@ void HandleMultiModPacks(uint64_t titleID) {
 
     KPADShutdown();
 }
-extern CRLayerHandle contentLayerHandle;
-extern CRLayerHandle aocLayerHandle;
+extern CRLayerHandle sContentLayerHandle;
+extern CRLayerHandle sAocLayerHandle;
 
 bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle);
 
 bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
-    bool contentRes = ReplaceContentInternal(basePath, "content", &contentLayerHandle);
-    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &aocLayerHandle);
+    bool contentRes = ReplaceContentInternal(basePath, "content", &sContentLayerHandle);
+    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &sAocLayerHandle);
 
     if (!contentRes && !aocRes) {
         auto screenWasAllocated = screenBuffer_0 != nullptr;
