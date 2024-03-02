@@ -26,7 +26,6 @@ bool gAutoApplySingleModpack     = DEFAULT_AUTO_APPLY_SINGLE_MODPACK;
 bool gSkipPrepareIfSingleModpack = DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK;
 bool gSDCafiineEnabled           = DEFAULT_SDCAFIINE_ENABLED;
 
-
 WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHandle rootHandle);
 
 void ConfigMenuClosedCallback();
