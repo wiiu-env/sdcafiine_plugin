@@ -1,5 +1,5 @@
 #include "modpackSelector.h"
-#include "main.h"
+#include "globals.h"
 #include "utils/input.h"
 #include "version.h"
 #include <content_redirection/redirection.h>
@@ -111,7 +111,7 @@ void HandleMultiModPacks(uint64_t titleID) {
         DIR *dir = opendir(modTitleIDPathOld.c_str());
         if (dir) {
             if (!ScreenInit()) {
-                OSFatal("Please migrate sd:/sdcafiine to sd:/wiiu/sdcafiine.");
+                OSFatal("SDCafiine plugin: Please migrate sd:/sdcafiine to sd:/wiiu/sdcafiine.");
             }
             OSScreenClearBufferEx(SCREEN_TV, 0);
             OSScreenClearBufferEx(SCREEN_DRC, 0);
@@ -252,8 +252,12 @@ void HandleMultiModPacks(uint64_t titleID) {
                 selected += per_page;
                 initScreen = 1;
             }
-            if (selected < 0) { selected = 0; }
-            if (selected >= modTitlePath.size()) { selected = modTitlePath.size() - 1; }
+            if (selected < 0) {
+                selected = 0;
+            }
+            if (selected >= (int) modTitlePath.size()) {
+                selected = modTitlePath.size() - 1;
+            }
             page = selected / per_page;
 
             if (initScreen) {
@@ -308,20 +312,18 @@ void HandleMultiModPacks(uint64_t titleID) {
 
     KPADShutdown();
 }
-extern CRLayerHandle sContentLayerHandle;
-extern CRLayerHandle sAocLayerHandle;
 
 bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle);
 
 bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
-    bool contentRes = ReplaceContentInternal(basePath, "content", &sContentLayerHandle);
-    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &sAocLayerHandle);
+    bool contentRes = ReplaceContentInternal(basePath, "content", &gContentLayerHandle);
+    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &gAocLayerHandle);
 
     if (!contentRes && !aocRes) {
         auto screenWasAllocated = screenBuffer_0 != nullptr;
 
         if (!ScreenInit()) {
-            OSFatal("Failed to apply the modpack.");
+            OSFatal("SDCafiine plugin: Failed to apply the modpack.");
         }
         uint32_t sleepTime = 3000;
         DEBUG_FUNCTION_LINE_ERR("Failed to apply the modpack. Starting without mods.");
@@ -394,7 +396,6 @@ bool ReplaceContentInternal(const std::string &basePath, const std::string &subd
         DEBUG_FUNCTION_LINE("Redirect /vol/%s to %s", subdir.c_str(), fullPath.c_str());
     } else {
         DEBUG_FUNCTION_LINE_ERR("Failed to redirect /vol/%s to %s", subdir.c_str(), fullPath.c_str());
-
         return false;
     }
     return true;
