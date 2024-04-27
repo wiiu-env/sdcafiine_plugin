@@ -2,7 +2,7 @@
 #include "version.h"
 #include <content_redirection/redirection.h>
 
-#define VERSION                                "v0.1.3"
+#define VERSION                                "v0.1.4"
 #define VERSION_FULL                           VERSION VERSION_EXTRA
 
 #define AUTO_APPLY_SINGLE_MODPACK_STRING       "autoApplySingleModpack"
