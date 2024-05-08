@@ -226,7 +226,7 @@ void HandleMultiModPacks(uint64_t titleID) {
                 OSScreenFlipBuffersEx(SCREEN_TV);
                 OSScreenFlipBuffersEx(SCREEN_DRC);
 
-
+                gAutoApplySingleModpack = !gAutoApplySingleModpack;
                 // If the value has changed, we store it in the storage.
                 if (WUPSStorageAPI::Store(AUTO_APPLY_SINGLE_MODPACK_STRING, gAutoApplySingleModpack) == WUPS_STORAGE_ERROR_SUCCESS) {
                     if (WUPSStorageAPI::SaveStorage() != WUPS_STORAGE_ERROR_SUCCESS) {
