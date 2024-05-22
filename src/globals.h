@@ -19,3 +19,4 @@ extern bool gSDCafiineEnabled;
 
 extern CRLayerHandle gAocLayerHandle;
 extern CRLayerHandle gContentLayerHandle;
+extern CRLayerHandle gSaveLayerHandle;

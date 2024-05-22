@@ -16,6 +16,7 @@
 #include <string>
 #include <utils/logger.h>
 #include <wups/storage.h>
+#include <nn/act.h>
 
 #define TEXT_SEL(x, text1, text2) ((x) ? (text1) : (text2))
 
@@ -313,11 +314,12 @@ void HandleMultiModPacks(uint64_t titleID) {
     KPADShutdown();
 }
 
-bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle);
+bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle,FSLayerType layerType);
 
 bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
-    bool contentRes = ReplaceContentInternal(basePath, "content", &gContentLayerHandle);
-    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &gAocLayerHandle);
+    bool contentRes = ReplaceContentInternal(basePath, "content", &gContentLayerHandle,FS_LAYER_TYPE_CONTENT_MERGE);
+    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &gAocLayerHandle,FS_LAYER_TYPE_AOC_MERGE);
+    bool saveRes    = ReplaceContentInternal(basePath, "save", &gSaveLayerHandle,FS_LAYER_TYPE_SAVE_REPLACE);
 
     if (!contentRes && !aocRes) {
         auto screenWasAllocated = screenBuffer_0 != nullptr;
@@ -379,9 +381,21 @@ bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
     return true;
 }
 
-bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle) {
-    std::string layerName = "SDCafiine /vol/" + subdir;
+bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle,FSLayerType layerType) {
+    std::string layerName = "SDCafiine Plus /vol/" + subdir;
     std::string fullPath  = basePath + "/" + subdir;
+    if(layerType == FS_LAYER_TYPE_SAVE_REPLACE){
+        nn::act::Initialize();
+        nn::act::PersistentId id = nn::act::GetPersistentId();
+        nn::act::Finalize();
+
+        char user[9];
+        snprintf(user, 9, "%08x", 0x80000000 | id);
+
+        mkdir(fullPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir((fullPath+"/"+"common").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir((fullPath+"/"+user).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);  
+    }
     struct stat st {};
     if (stat(fullPath.c_str(), &st) < 0) {
         DEBUG_FUNCTION_LINE_WARN("Skip /vol/%s to %s redirection. Dir does not exist", subdir.c_str(), fullPath.c_str());
@@ -391,7 +405,7 @@ bool ReplaceContentInternal(const std::string &basePath, const std::string &subd
     auto res = ContentRedirection_AddFSLayer(layerHandle,
                                              layerName.c_str(),
                                              fullPath.c_str(),
-                                             subdir == "aoc" ? FS_LAYER_TYPE_AOC_MERGE : FS_LAYER_TYPE_CONTENT_MERGE);
+                                             layerType);
     if (res == CONTENT_REDIRECTION_RESULT_SUCCESS) {
         DEBUG_FUNCTION_LINE("Redirect /vol/%s to %s", subdir.c_str(), fullPath.c_str());
     } else {
