@@ -317,9 +317,34 @@ void HandleMultiModPacks(uint64_t titleID) {
 bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle,FSLayerType layerType);
 
 bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
+    bool saveRes    = ReplaceContentInternal(basePath, "save", &gSaveLayerHandle,FS_LAYER_TYPE_SAVE_REPLACE);
+
+    if(!saveRes){
+
+        auto screenWasAllocated = screenBuffer_0 != nullptr;
+
+        if (!ScreenInit()) {
+            OSFatal("SDCafiine plugin: Failed to apply the modpack.");
+        }
+        uint32_t sleepTime = 3000;
+        DEBUG_FUNCTION_LINE_ERR("Failed to apply the save redirection. Starting without mods.");
+        OSScreenClearBufferEx(SCREEN_TV, 0);
+        OSScreenClearBufferEx(SCREEN_DRC, 0);
+        console_print_pos(-2, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+        console_print_pos(-2, 1, "Failed to apply the save redirection. Starting without mods...");
+
+        OSScreenFlipBuffersEx(SCREEN_TV);
+        OSScreenFlipBuffersEx(SCREEN_DRC);
+
+        OSSleepTicks(OSMillisecondsToTicks(sleepTime));
+        if (!screenWasAllocated) {
+            ScreenDeInit();
+        }
+        return false;
+    }
+
     bool contentRes = ReplaceContentInternal(basePath, "content", &gContentLayerHandle,FS_LAYER_TYPE_CONTENT_MERGE);
     bool aocRes     = ReplaceContentInternal(basePath, "aoc", &gAocLayerHandle,FS_LAYER_TYPE_AOC_MERGE);
-    bool saveRes    = ReplaceContentInternal(basePath, "save", &gSaveLayerHandle,FS_LAYER_TYPE_SAVE_REPLACE);
 
     if (!contentRes && !aocRes) {
         auto screenWasAllocated = screenBuffer_0 != nullptr;
