@@ -13,10 +13,10 @@
 #include <malloc.h>
 #include <map>
 #include <memory/mappedmemory.h>
+#include <nn/act.h>
 #include <string>
 #include <utils/logger.h>
 #include <wups/storage.h>
-#include <nn/act.h>
 
 #define TEXT_SEL(x, text1, text2) ((x) ? (text1) : (text2))
 
@@ -314,37 +314,39 @@ void HandleMultiModPacks(uint64_t titleID) {
     KPADShutdown();
 }
 
-bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle,FSLayerType layerType);
+bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle, FSLayerType layerType);
 
 bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
-    bool saveRes    = ReplaceContentInternal(basePath, "save", &gSaveLayerHandle,FS_LAYER_TYPE_SAVE_REPLACE);
+    if (gSaveRedirectionEnabled) {
+        bool saveRes = ReplaceContentInternal(basePath, "save", &gSaveLayerHandle, FS_LAYER_TYPE_SAVE_REPLACE);
 
-    if(!saveRes){
+        if (!saveRes) {
 
-        auto screenWasAllocated = screenBuffer_0 != nullptr;
+            auto screenWasAllocated = screenBuffer_0 != nullptr;
 
-        if (!ScreenInit()) {
-            OSFatal("SDCafiine plugin: Failed to apply the modpack.");
+            if (!ScreenInit()) {
+                OSFatal("SDCafiine plugin: Failed to apply the modpack.");
+            }
+            uint32_t sleepTime = 3000;
+            DEBUG_FUNCTION_LINE_ERR("Failed to apply the save redirection. Starting without mods.");
+            OSScreenClearBufferEx(SCREEN_TV, 0);
+            OSScreenClearBufferEx(SCREEN_DRC, 0);
+            console_print_pos(-2, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
+            console_print_pos(-2, 1, "Failed to apply the save redirection. Starting without mods...");
+
+            OSScreenFlipBuffersEx(SCREEN_TV);
+            OSScreenFlipBuffersEx(SCREEN_DRC);
+
+            OSSleepTicks(OSMillisecondsToTicks(sleepTime));
+            if (!screenWasAllocated) {
+                ScreenDeInit();
+            }
+            return false;
         }
-        uint32_t sleepTime = 3000;
-        DEBUG_FUNCTION_LINE_ERR("Failed to apply the save redirection. Starting without mods.");
-        OSScreenClearBufferEx(SCREEN_TV, 0);
-        OSScreenClearBufferEx(SCREEN_DRC, 0);
-        console_print_pos(-2, -1, "SDCafiine plugin " VERSION VERSION_EXTRA);
-        console_print_pos(-2, 1, "Failed to apply the save redirection. Starting without mods...");
-
-        OSScreenFlipBuffersEx(SCREEN_TV);
-        OSScreenFlipBuffersEx(SCREEN_DRC);
-
-        OSSleepTicks(OSMillisecondsToTicks(sleepTime));
-        if (!screenWasAllocated) {
-            ScreenDeInit();
-        }
-        return false;
     }
 
-    bool contentRes = ReplaceContentInternal(basePath, "content", &gContentLayerHandle,FS_LAYER_TYPE_CONTENT_MERGE);
-    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &gAocLayerHandle,FS_LAYER_TYPE_AOC_MERGE);
+    bool contentRes = ReplaceContentInternal(basePath, "content", &gContentLayerHandle, FS_LAYER_TYPE_CONTENT_MERGE);
+    bool aocRes     = ReplaceContentInternal(basePath, "aoc", &gAocLayerHandle, FS_LAYER_TYPE_AOC_MERGE);
 
     if (!contentRes && !aocRes) {
         auto screenWasAllocated = screenBuffer_0 != nullptr;
@@ -406,10 +408,10 @@ bool ReplaceContent(const std::string &basePath, const std::string &modpack) {
     return true;
 }
 
-bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle,FSLayerType layerType) {
+bool ReplaceContentInternal(const std::string &basePath, const std::string &subdir, CRLayerHandle *layerHandle, FSLayerType layerType) {
     std::string layerName = "SDCafiine Plus /vol/" + subdir;
     std::string fullPath  = basePath + "/" + subdir;
-    if(layerType == FS_LAYER_TYPE_SAVE_REPLACE){
+    if (layerType == FS_LAYER_TYPE_SAVE_REPLACE) {
         nn::act::Initialize();
         nn::act::PersistentId id = nn::act::GetPersistentId();
         nn::act::Finalize();
@@ -418,8 +420,8 @@ bool ReplaceContentInternal(const std::string &basePath, const std::string &subd
         snprintf(user, 9, "%08x", 0x80000000 | id);
 
         mkdir(fullPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        mkdir((fullPath+"/"+"common").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        mkdir((fullPath+"/"+user).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);  
+        mkdir((fullPath + "/" + "common").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir((fullPath + "/" + user).c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
     struct stat st {};
     if (stat(fullPath.c_str(), &st) < 0) {
