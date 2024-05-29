@@ -18,6 +18,8 @@ static void bool_item_callback(ConfigItemBoolean *item, bool newValue) {
         gSkipPrepareIfSingleModpack = newValue;
     } else if (std::string_view(SDCAFIINE_ENABLED_STRING) == item->identifier) {
         gSDCafiineEnabled = newValue;
+    } else if (std::string_view(SAVE_REDIRECTION_ENABLED_STRING) == item->identifier) {
+        gSaveRedirectionEnabled = newValue;
     } else {
         DEBUG_FUNCTION_LINE_WARN("Unexpected boolean item: %s", item->identifier);
         return;
@@ -50,6 +52,11 @@ static WUPSConfigAPICallbackStatus ConfigMenuOpenedCallback(WUPSConfigCategoryHa
                                                            "Skip \"Preparing modpack...\" screen",
                                                            DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK, gSkipPrepareIfSingleModpack,
                                                            &bool_item_callback));
+
+        advancedSettings.add(WUPSConfigItemBoolean::Create(SAVE_REDIRECTION_ENABLED_STRING,
+                                                           "Enable Save Redirection (game needs to be restarted)",
+                                                           DEFAULT_SAVE_REDIRECTION_ENABLED, gSaveRedirectionEnabled,
+                                                           &bool_item_callback));
         root.add(std::move(advancedSettings));
 
     } catch (std::exception &e) {
@@ -79,7 +86,9 @@ void InitStorageAndConfig() {
     if ((err = WUPSStorageAPI::GetOrStoreDefault(SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, gSkipPrepareIfSingleModpack, DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK)) != WUPS_STORAGE_ERROR_SUCCESS) {
         DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\": %s (%d)", gSkipPrepareIfSingleModpack, WUPSStorageAPI_GetStatusStr(err), err);
     }
-
+    if ((err = WUPSStorageAPI::GetOrStoreDefault(SAVE_REDIRECTION_ENABLED_STRING, gSaveRedirectionEnabled, DEFAULT_SAVE_REDIRECTION_ENABLED)) != WUPS_STORAGE_ERROR_SUCCESS) {
+        DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\": %s (%d)", gSaveRedirectionEnabled, WUPSStorageAPI_GetStatusStr(err), err);
+    }
     if ((err = WUPSStorageAPI::SaveStorage()) != WUPS_STORAGE_ERROR_SUCCESS) {
         DEBUG_FUNCTION_LINE_ERR("Failed to save storage: %s (%d)", WUPSStorageAPI_GetStatusStr(err), err);
     }
