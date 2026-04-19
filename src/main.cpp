@@ -27,6 +27,7 @@ INITIALIZE_PLUGIN() {
 
     gContentLayerHandle = 0;
     gAocLayerHandle     = 0;
+    gSaveLayerHandle    = 0;
 }
 
 /* Entry point */
@@ -47,6 +48,10 @@ ON_APPLICATION_ENDS() {
     if (gAocLayerHandle != 0) {
         ContentRedirection_RemoveFSLayer(gAocLayerHandle);
         gAocLayerHandle = 0;
+    }
+    if (gSaveLayerHandle != 0) {
+        ContentRedirection_RemoveFSLayer(gSaveLayerHandle);
+        gSaveLayerHandle = 0;
     }
     deinitLogging();
 }
