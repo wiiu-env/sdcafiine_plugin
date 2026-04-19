@@ -1,7 +1,7 @@
-FROM ghcr.io/wiiu-env/devkitppc:20240505
+FROM ghcr.io/wiiu-env/devkitppc:20260225
 
-COPY --from=ghcr.io/wiiu-env/wiiupluginsystem:20240505 /artifacts $DEVKITPRO
-COPY --from=ghcr.io/wiiu-env/libmappedmemory:20230621 /artifacts $DEVKITPRO
-COPY --from=ghcr.io/wiiu-env/libcontentredirection:20240424 /artifacts $DEVKITPRO
+COPY --from=ghcr.io/wiiu-env/wiiupluginsystem:20260418 /artifacts $DEVKITPRO
+COPY --from=ghcr.io/wiiu-env/libmappedmemory:20260331 /artifacts $DEVKITPRO
+COPY --from=ghcr.io/wiiu-env/libcontentredirection:20260418 /artifacts $DEVKITPRO
 
 WORKDIR project
