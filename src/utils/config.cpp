@@ -77,7 +77,7 @@ void InitStorageAndConfig() {
         DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\": %s (%d)", SDCAFIINE_ENABLED_STRING, WUPSStorageAPI_GetStatusStr(err), err);
     }
     if ((err = WUPSStorageAPI::GetOrStoreDefault(SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, gSkipPrepareIfSingleModpack, DEFAULT_SKIP_PREPARE_IF_SINGLE_MODPACK)) != WUPS_STORAGE_ERROR_SUCCESS) {
-        DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\": %s (%d)", gSkipPrepareIfSingleModpack, WUPSStorageAPI_GetStatusStr(err), err);
+        DEBUG_FUNCTION_LINE_ERR("Failed to get or create item \"%s\": %s (%d)", SKIP_PREPARE_FOR_SINGLE_MODPACK_STRING, WUPSStorageAPI_GetStatusStr(err), err);
     }
 
     if ((err = WUPSStorageAPI::SaveStorage()) != WUPS_STORAGE_ERROR_SUCCESS) {
